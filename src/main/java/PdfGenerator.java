@@ -4,6 +4,7 @@ import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.color.Color;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -25,17 +26,63 @@ import com.itextpdf.layout.property.TextAlignment;
 import com.itextpdf.layout.property.VerticalAlignment;
 
 import javax.swing.text.StyleConstants;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.sql.Blob;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
+
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.chart.axis.CategoryLabelPositions;
+import org.jfree.chart.labels.StandardCategoryItemLabelGenerator;
+import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.chart.title.TextTitle;
+import org.jfree.ui.RectangleEdge;
+
+import org.jfree.chart.ChartUtils;
 
 public class PdfGenerator {
+
+    private static JFreeChart createBarChart(List<Map<String, Object>> records) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        Map<String, Double> summedValues = new HashMap<>();
+        for (Map<String, Object> record : records) {
+            String use1 = (String) record.get("USE1");
+            double arv = Double.parseDouble((String) record.get("ARV"));
+
+            summedValues.put(use1, summedValues.getOrDefault(use1, 0.0) + arv);
+        }
+
+        for (Map.Entry<String, Double> entry : summedValues.entrySet()) {
+            dataset.addValue(entry.getValue(), "ARV", entry.getKey());
+        }
+
+        JFreeChart barChart = ChartFactory.createBarChart(
+                "ARV by USE1",
+                "USE1",
+                "Total ARV",
+                dataset
+        );
+
+        return barChart;
+    }
+
+
+    private static Image convertChartToImage(JFreeChart chart, int width, int height) throws IOException {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        ChartUtils.writeChartAsPNG(os, chart, width, height);
+
+        byte[] byteArray = os.toByteArray();
+        return new Image(ImageDataFactory.create(byteArray));
+    }
+
+
     public static class HeaderFooterEventHandler implements IEventHandler {
         private PdfFont font;
         Image leftImage;
@@ -107,8 +154,20 @@ public class PdfGenerator {
 
         HeaderFooterEventHandler eventHandler = new HeaderFooterEventHandler(leftImage, rightImage);
         pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, eventHandler);
+        float marginLeft = 36;     // Default
+        float marginRight = 36;    // Default
+        float marginTop = 100;     // Adjust this value based on your header height
+        float marginBottom = 36;   // Default
 
         Document document = new Document(pdfDocument);
+        document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
+
+        JFreeChart barChart = createBarChart(records);
+        Image chartImage = convertChartToImage(barChart, 1000, 600); // Double the width and height
+        chartImage.scale(0.5f, 0.5f); // Scale down by 50% when adding to the PDF
+        document.add(chartImage);
+
+
 
 //        Text text1 = new Text("You are nice").setFont(font);
 //        Text text2 = new Text(" gordon").setFont(boldFont);
