@@ -22,10 +22,12 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Canvas;
 
 
+//import com.itextpdf.layout.property.HorizontalAlignment;
 import com.itextpdf.layout.property.TextAlignment;
 import com.itextpdf.layout.property.VerticalAlignment;
 
 import javax.swing.text.StyleConstants;
+import java.awt.*;
 import java.io.*;
 import java.sql.Blob;
 import java.sql.SQLException;
@@ -36,13 +38,19 @@ import java.util.Map;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.axis.CategoryLabelPositions;
 import org.jfree.chart.labels.StandardCategoryItemLabelGenerator;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.chart.title.TextTitle;
-import org.jfree.ui.RectangleEdge;
+//import org.jfree.ui.RectangleEdge;
+import org.jfree.chart.ui.RectangleEdge;
+import org.jfree.chart.ui.HorizontalAlignment;
+
+
 
 import org.jfree.chart.ChartUtils;
 
@@ -64,14 +72,60 @@ public class PdfGenerator {
         }
 
         JFreeChart barChart = ChartFactory.createBarChart(
-                "ARV by USE1",
-                "USE1",
-                "Total ARV",
-                dataset
+                null,
+                null,
+                "2020 GDP, trillions of USD",
+                dataset,
+                PlotOrientation.HORIZONTAL,
+                false,
+                true,
+                false
         );
+
+        // Start of Styling
+        CategoryPlot plot = barChart.getCategoryPlot();
+        barChart.setBackgroundPaint(java.awt.Color.WHITE);
+        plot.setBackgroundPaint(java.awt.Color.WHITE);
+
+
+        BarRenderer renderer = (BarRenderer) plot.getRenderer();
+        renderer.setSeriesPaint(0, new java.awt.Color(0, 107, 162));
+        renderer.setBarPainter(new StandardBarPainter());  // This disables the gradient effect
+
+
+
+        plot.setDomainGridlinesVisible(true);
+        plot.setDomainGridlinePaint(java.awt.Color.LIGHT_GRAY);
+        plot.setRangeGridlinesVisible(false);
+
+        plot.setOutlineVisible(false);
+        plot.getRangeAxis().setAxisLineVisible(false);
+        plot.getRangeAxis().setTickMarksVisible(false);
+        plot.getDomainAxis().setAxisLineVisible(false);
+        plot.getDomainAxis().setTickMarksVisible(false);
+
+        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.UP_90);
+        plot.getRangeAxis().setTickLabelFont(new Font("SansSerif", Font.PLAIN, 11));
+
+        TextTitle title = new TextTitle("The big leagues", new Font("SansSerif", Font.BOLD, 13));
+        title.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
+        title.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
+        barChart.addSubtitle(title);
+
+        TextTitle subtitle = new TextTitle("2020 GDP, trillions of USD", new Font("SansSerif", Font.PLAIN, 11));
+        subtitle.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
+        subtitle.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
+        barChart.addSubtitle(subtitle);
+
+
+        renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator());
+        renderer.setDefaultItemLabelsVisible(true);
+
+        // End of Styling
 
         return barChart;
     }
+
 
 
     private static Image convertChartToImage(JFreeChart chart, int width, int height) throws IOException {
@@ -163,8 +217,8 @@ public class PdfGenerator {
         document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
 
         JFreeChart barChart = createBarChart(records);
-        Image chartImage = convertChartToImage(barChart, 1000, 600); // Double the width and height
-        chartImage.scale(0.5f, 0.5f); // Scale down by 50% when adding to the PDF
+        Image chartImage = convertChartToImage(barChart, 1500, 900); // Double the width and height
+        chartImage.scale(0.4f, 0.4f); // Scale down by 50% when adding to the PDF
         document.add(chartImage);
 
 
