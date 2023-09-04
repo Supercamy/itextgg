@@ -50,6 +50,11 @@ import org.jfree.chart.title.TextTitle;
 import org.jfree.chart.ui.RectangleEdge;
 import org.jfree.chart.ui.HorizontalAlignment;
 
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+
+
+
 
 
 import org.jfree.chart.ChartUtils;
@@ -129,12 +134,13 @@ public class PdfGenerator {
 
 
     private static Image convertChartToImage(JFreeChart chart, int width, int height) throws IOException {
+        BufferedImage bufferedImage = chart.createBufferedImage(width, height, BufferedImage.TYPE_INT_RGB, null);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        ChartUtils.writeChartAsPNG(os, chart, width, height);
-
+        ImageIO.write(bufferedImage, "png", os);
         byte[] byteArray = os.toByteArray();
         return new Image(ImageDataFactory.create(byteArray));
     }
+
 
 
     public static class HeaderFooterEventHandler implements IEventHandler {
@@ -217,8 +223,9 @@ public class PdfGenerator {
         document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
 
         JFreeChart barChart = createBarChart(records);
-        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height
-        chartImage.scale(0.5f, 0.5f); // Scale down by 50% when adding to the PDF
+        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height for higher resolution
+        chartImage.scale(0.25f, 0.25f); // Scale down by 50% when adding to the PDF
+
         document.add(chartImage);
 
 
