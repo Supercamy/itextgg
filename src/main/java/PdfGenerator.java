@@ -1,12 +1,14 @@
 import com.itextpdf.io.font.FontConstants;
+import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.image.ImageDataFactory;
 
-import com.itextpdf.kernel.color.Color;
+//import com.itextpdf.kernel.color.Color;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
@@ -29,6 +31,7 @@ import com.itextpdf.layout.property.VerticalAlignment;
 import javax.swing.text.StyleConstants;
 import java.awt.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.Blob;
 import java.sql.SQLException;
 import java.util.Date;
@@ -54,8 +57,13 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
 
+import org.apache.batik.dom.GenericDOMImplementation;
+import org.apache.batik.svggen.SVGGraphics2D;
+import org.w3c.dom.DOMImplementation;
 
 
+import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.svg.converter.SvgConverter;
 
 import org.jfree.chart.ChartUtils;
 
@@ -141,6 +149,16 @@ public class PdfGenerator {
         return new Image(ImageDataFactory.create(byteArray));
     }
 
+    private static String convertChartToSVG(JFreeChart chart, int width, int height) throws IOException {
+        DOMImplementation domImpl = GenericDOMImplementation.getDOMImplementation();
+        org.w3c.dom.Document document = domImpl.createDocument(null, "svg", null);
+        SVGGraphics2D svgGenerator = new SVGGraphics2D(document);
+        chart.draw(svgGenerator, new java.awt.Rectangle(width, height));
+        StringWriter svgWriter = new StringWriter();
+        svgGenerator.stream(svgWriter, true);
+        return svgWriter.toString();
+    }
+
 
 
     public static class HeaderFooterEventHandler implements IEventHandler {
@@ -155,7 +173,7 @@ public class PdfGenerator {
             this.rightImage = rightImg;
 
             try {
-                this.font = PdfFontFactory.createFont(FontConstants.HELVETICA_BOLD);
+                this.font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -171,16 +189,16 @@ public class PdfGenerator {
             rightImage.scale(0.06f, 0.06f);
 
 
-            com.itextpdf.kernel.color.DeviceRgb headerFooterColor = new com.itextpdf.kernel.color.DeviceRgb(81, 36, 122);
+            DeviceRgb headerFooterColor = new DeviceRgb(81, 36, 122);
 
             // Header
             pdfCanvas.saveState();
             pdfCanvas.setFillColor(headerFooterColor).rectangle(pageSize.getLeft(), pageSize.getTop() - 50, pageSize.getWidth(), 50).fill();
             pdfCanvas.restoreState();
 
-            new Canvas(pdfCanvas, docEvent.getDocument(), pageSize).add(leftImage.setFixedPosition(pageSize.getLeft() + 10, pageSize.getTop() - 40));
-            new Canvas(pdfCanvas, docEvent.getDocument(), pageSize).add(rightImage.setFixedPosition(pageSize.getRight() - 60, pageSize.getTop() - 40)); // Adjust positioning
-            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(Color.WHITE, true)
+            new Canvas(pdfCanvas, pageSize).add(leftImage.setFixedPosition(pageSize.getLeft() + 10, pageSize.getTop() - 40));
+            new Canvas(pdfCanvas, pageSize).add(rightImage.setFixedPosition(pageSize.getRight() - 60, pageSize.getTop() - 40));
+            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(new DeviceRgb(255, 255, 255), true)
                     .moveText(pageSize.getWidth() / 2 - 50, pageSize.getTop() - 30)  // Approximate centering - adjust as needed
                     .showText("Building Summary")
                     .endText();
@@ -190,12 +208,12 @@ public class PdfGenerator {
             pdfCanvas.setFillColor(headerFooterColor).rectangle(pageSize.getLeft(), pageSize.getBottom(), pageSize.getWidth(), 30).fill();
             pdfCanvas.restoreState();
 
-            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(Color.WHITE, true)
+            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(new DeviceRgb(255, 255, 255), true)
                     .moveText(pageSize.getLeft() + 10, pageSize.getBottom() + 10)
                     .showText(String.format("Date: %s", new Date()))
                     .endText();
 
-            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(Color.WHITE, true)
+            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(new DeviceRgb(255, 255, 255), true)
                     .moveText(pageSize.getRight() - 50, pageSize.getBottom() + 10)  // Adjust positioning for page number
                     .showText("Page: " + docEvent.getDocument().getPageNumber(page))
                     .endText();
@@ -209,8 +227,8 @@ public class PdfGenerator {
         Image leftImage = new Image(ImageDataFactory.create("C:\\TMP\\itext\\UQlockup-Reverse-cmykpn.png"));
         Image rightImage = new Image(ImageDataFactory.create("C:\\TMP\\itext\\Logo-Right.png"));
 
-        PdfFont font = PdfFontFactory.createFont(FontConstants.HELVETICA);
-        PdfFont boldFont = PdfFontFactory.createFont(FontConstants.HELVETICA_BOLD);
+        PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+        PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
         HeaderFooterEventHandler eventHandler = new HeaderFooterEventHandler(leftImage, rightImage);
         pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, eventHandler);
@@ -223,10 +241,25 @@ public class PdfGenerator {
         document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
 
         JFreeChart barChart = createBarChart(records);
-        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height for higher resolution
-        chartImage.scale(0.25f, 0.25f); // Scale down by 50% when adding to the PDF
+//        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height for higher resolution
+//        chartImage.scale(0.25f, 0.25f); // Scale down by 50% when adding to the PDF
+        String svgString = convertChartToSVG(barChart, 1000, 600);
+        int svgWidth = 2000;  // You can adjust this value as needed
+        int svgHeight = 1200;  // You can adjust this value as needed
+        svgString = svgString.replaceFirst("<svg ", "<svg width=\"" + svgWidth + "\" height=\"" + svgHeight + "\" ");
 
-        document.add(chartImage);
+
+        PdfFormXObject svgXObject = SvgConverter.convertToXObject(svgString, pdfDocument);
+        Image svgImage = new Image(svgXObject);
+        svgImage.scaleToFit(PageSize.A4.getWidth() - 100, PageSize.A4.getHeight() - 200);  // Adjust as needed
+        svgImage.setFixedPosition(50, 400);  // Adjust as needed
+
+        svgImage.scale(0.5f, 0.5f); // This will scale the image to 50% of its original size
+
+
+        document.add(svgImage);
+
+//        document.add(chartImage);
 
 
 
@@ -236,52 +269,52 @@ public class PdfGenerator {
 //        Paragraph paragraph = new Paragraph().add(text1).add(text2);
 //        document.add(paragraph);
 
-        int count = 0;
-        Table table = new Table(2);
-
-        for (Map<String, Object> record : records) {
-            String textData = String.format("BL_ID: %s\nBLNAME: %s\nAREA_GROSS_INT: %s\nARV: %s\nUSE1: %s",
-                    record.get("BL_ID"), record.get("BLNAME"), record.get("AREA_GROSS_INT"),
-                    record.get("ARV"), record.get("USE1"));
-
-            table.addCell(new Cell().add(new Paragraph(textData).setFont(font)));
-
-            String bl_id = (String) record.get("BL_ID");
-            File imageFile = new File("C:\\TMP\\itext\\" + bl_id + ".jpg");
-
-            if (imageFile.exists()) {
-                try {
-                    Image image = new Image(ImageDataFactory.create(imageFile.getAbsolutePath()));
-                    image.scaleToFit(200, 200);
-                    Cell imageCell = new Cell();
-                    imageCell.add(image);
-                    table.addCell(imageCell);
-                } catch (Exception e) {
-                    System.out.println("Error processing image for BL_ID: " + bl_id);
-                    e.printStackTrace();
-                    table.addCell(new Cell().add(new Paragraph("Invalid Image")));
-                }
-            } else {
-                table.addCell(new Cell().add(new Paragraph("No Image Available")));
-            }
-
-
-            count++;
-            if (count % 5 == 0) {
-                document.add(table);
-                table = new Table(2); // Reset table
-            }
-        }
-
-        // Ensure the last row of the table is complete.
-        while (count % 2 != 0) {
-            table.addCell(new Cell().add(new Paragraph(" ")));
-            count++;
-        }
-
-        if (count % 5 != 0) {
-            document.add(table);
-        }
+//        int count = 0;
+//        Table table = new Table(2);
+//
+//        for (Map<String, Object> record : records) {
+//            String textData = String.format("BL_ID: %s\nBLNAME: %s\nAREA_GROSS_INT: %s\nARV: %s\nUSE1: %s",
+//                    record.get("BL_ID"), record.get("BLNAME"), record.get("AREA_GROSS_INT"),
+//                    record.get("ARV"), record.get("USE1"));
+//
+//            table.addCell(new Cell().add(new Paragraph(textData).setFont(font)));
+//
+//            String bl_id = (String) record.get("BL_ID");
+//            File imageFile = new File("C:\\TMP\\itext\\" + bl_id + ".jpg");
+//
+//            if (imageFile.exists()) {
+//                try {
+//                    Image image = new Image(ImageDataFactory.create(imageFile.getAbsolutePath()));
+//                    image.scaleToFit(200, 200);
+//                    Cell imageCell = new Cell();
+//                    imageCell.add(image);
+//                    table.addCell(imageCell);
+//                } catch (Exception e) {
+//                    System.out.println("Error processing image for BL_ID: " + bl_id);
+//                    e.printStackTrace();
+//                    table.addCell(new Cell().add(new Paragraph("Invalid Image")));
+//                }
+//            } else {
+//                table.addCell(new Cell().add(new Paragraph("No Image Available")));
+//            }
+//
+//
+//            count++;
+//            if (count % 5 == 0) {
+//                document.add(table);
+//                table = new Table(2); // Reset table
+//            }
+//        }
+//
+//        // Ensure the last row of the table is complete.
+//        while (count % 2 != 0) {
+//            table.addCell(new Cell().add(new Paragraph(" ")));
+//            count++;
+//        }
+//
+//        if (count % 5 != 0) {
+//            document.add(table);
+//        }
         document.close();
 
         System.out.println("Pdf Created");
