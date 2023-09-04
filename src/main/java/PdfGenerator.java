@@ -217,8 +217,8 @@ public class PdfGenerator {
         document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
 
         JFreeChart barChart = createBarChart(records);
-        Image chartImage = convertChartToImage(barChart, 1500, 900); // Double the width and height
-        chartImage.scale(0.4f, 0.4f); // Scale down by 50% when adding to the PDF
+        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height
+        chartImage.scale(0.5f, 0.5f); // Scale down by 50% when adding to the PDF
         document.add(chartImage);
 
 
