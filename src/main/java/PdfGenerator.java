@@ -10,11 +10,8 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Text;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.borders.Border;
+import com.itextpdf.layout.element.*;
 import com.itextpdf.kernel.events.Event;
 import com.itextpdf.kernel.events.IEventHandler;
 import com.itextpdf.kernel.events.PdfDocumentEvent;
@@ -25,6 +22,7 @@ import com.itextpdf.layout.Canvas;
 import java.text.SimpleDateFormat;
 
 //import com.itextpdf.layout.property.HorizontalAlignment;
+import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.property.TextAlignment;
 import com.itextpdf.layout.property.VerticalAlignment;
 
@@ -308,64 +306,76 @@ public class PdfGenerator {
 
         document.add(svgImage);
 
-
+        document.add(new AreaBreak());
 
 //        document.add(chartImage);
 
 
 
-//        Text text1 = new Text("You are nice").setFont(font);
-//        Text text2 = new Text(" gordon").setFont(boldFont);
-//
-//        Paragraph paragraph = new Paragraph().add(text1).add(text2);
-//        document.add(paragraph);
+        int count = 0;
 
-//        int count = 0;
-//        Table table = new Table(2);
-//
-//        for (Map<String, Object> record : records) {
-//            String textData = String.format("BL_ID: %s\nBLNAME: %s\nAREA_GROSS_INT: %s\nARV: %s\nUSE1: %s",
-//                    record.get("BL_ID"), record.get("BLNAME"), record.get("AREA_GROSS_INT"),
-//                    record.get("ARV"), record.get("USE1"));
-//
-//            table.addCell(new Cell().add(new Paragraph(textData).setFont(font)));
-//
-//            String bl_id = (String) record.get("BL_ID");
-//            File imageFile = new File("C:\\TMP\\itext\\" + bl_id + ".jpg");
-//
-//            if (imageFile.exists()) {
-//                try {
-//                    Image image = new Image(ImageDataFactory.create(imageFile.getAbsolutePath()));
+        float[] columnWidths = {400f, 200f};
+        Table table = new Table(columnWidths);
+        table.setWidth(PageSize.A4.getWidth() - marginLeft - marginRight);
+
+
+        DeviceRgb blackColor = new DeviceRgb(0, 0, 0);  // RGB for black
+
+
+        for (Map<String, Object> record : records) {
+            String textData = String.format("Building No: %s\n %s\nGFA: %s\nARV: %s\n %s",
+                    record.get("BL_ID"), record.get("BLNAME"), record.get("AREA_GROSS_INT"),
+                    record.get("ARV"), record.get("USE1"));
+
+            Paragraph cellParagraph = new Paragraph(textData).setFont(font).setFontColor(blackColor);
+
+//            table.addCell(new Cell().add(cellParagraph));
+            Cell textCell = new Cell().add(cellParagraph);
+            textCell.setBorder(Border.NO_BORDER);
+            table.addCell(textCell);
+
+            String bl_id = (String) record.get("BL_ID");
+            File imageFile = new File("C:\\TMP\\itext\\" + bl_id + ".jpg");
+
+            if (imageFile.exists()) {
+                try {
+                    Image image = new Image(ImageDataFactory.create(imageFile.getAbsolutePath()));
 //                    image.scaleToFit(200, 200);
-//                    Cell imageCell = new Cell();
-//                    imageCell.add(image);
-//                    table.addCell(imageCell);
-//                } catch (Exception e) {
-//                    System.out.println("Error processing image for BL_ID: " + bl_id);
-//                    e.printStackTrace();
-//                    table.addCell(new Cell().add(new Paragraph("Invalid Image")));
-//                }
-//            } else {
-//                table.addCell(new Cell().add(new Paragraph("No Image Available")));
-//            }
-//
-//
-//            count++;
-//            if (count % 5 == 0) {
-//                document.add(table);
-//                table = new Table(2); // Reset table
-//            }
-//        }
-//
-//        // Ensure the last row of the table is complete.
-//        while (count % 2 != 0) {
-//            table.addCell(new Cell().add(new Paragraph(" ")));
-//            count++;
-//        }
-//
-//        if (count % 5 != 0) {
-//            document.add(table);
-//        }
+                    image.scaleAbsolute(180, 120); // Set the width and height as needed
+
+                    Cell imageCell = new Cell();
+                    imageCell.add(image);
+                    imageCell.setBorder(Border.NO_BORDER);
+                    table.addCell(imageCell);
+                } catch (Exception e) {
+                    System.out.println("Error processing image for BL_ID: " + bl_id);
+                    e.printStackTrace();
+                    table.addCell(new Cell().add(new Paragraph("Invalid Image")));
+                }
+            } else {
+                Cell noImageCell = new Cell().add(new Paragraph("No Image Available"));
+                noImageCell.setBorder(Border.NO_BORDER);
+                table.addCell(noImageCell);
+            }
+
+
+            count++;
+            if (count % 5 == 0) {
+                document.add(table);
+                table = new Table(columnWidths);
+            }
+        }
+
+        // Ensure the last row of the table is complete.
+        while (count % 2 != 0) {
+            table.addCell(new Cell().add(new Paragraph(" ")));
+            count++;
+        }
+
+        if (count % 5 != 0) {
+            document.add(table);
+            table = new Table(columnWidths);
+        }
         document.close();
 
         System.out.println("Pdf Created");
