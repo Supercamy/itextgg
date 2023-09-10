@@ -22,7 +22,7 @@ import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Canvas;
-
+import java.text.SimpleDateFormat;
 
 //import com.itextpdf.layout.property.HorizontalAlignment;
 import com.itextpdf.layout.property.TextAlignment;
@@ -34,6 +34,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.Blob;
 import java.sql.SQLException;
+import java.text.NumberFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ import org.jfree.chart.ui.RectangleEdge;
 import org.jfree.chart.ui.HorizontalAlignment;
 
 import java.awt.image.BufferedImage;
+import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 
@@ -80,14 +82,19 @@ public class PdfGenerator {
             summedValues.put(use1, summedValues.getOrDefault(use1, 0.0) + arv);
         }
 
-        for (Map.Entry<String, Double> entry : summedValues.entrySet()) {
-            dataset.addValue(entry.getValue(), "ARV", entry.getKey());
+        List<Map.Entry<String, Double>> sortedEntries = summedValues.entrySet()
+                .stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .collect(Collectors.toList());
+
+        for (Map.Entry<String, Double> entry : sortedEntries) {
+            dataset.addValue(entry.getValue() / 1_000_000, "ARV", entry.getKey());
         }
 
         JFreeChart barChart = ChartFactory.createBarChart(
                 null,
                 null,
-                "2020 GDP, trillions of USD",
+                "ARV Building by Category (Millions)",
                 dataset,
                 PlotOrientation.HORIZONTAL,
                 false,
@@ -105,9 +112,12 @@ public class PdfGenerator {
         renderer.setSeriesPaint(0, new java.awt.Color(0, 107, 162));
         renderer.setBarPainter(new StandardBarPainter());  // This disables the gradient effect
 
+        Font helveticaFont = new Font("Helvetica", Font.PLAIN, 11);
+        plot.getRangeAxis().setTickLabelFont(helveticaFont);
+        plot.getDomainAxis().setTickLabelFont(helveticaFont);
+        renderer.setDefaultItemLabelFont(helveticaFont);
 
-
-        plot.setDomainGridlinesVisible(true);
+        plot.setDomainGridlinesVisible(false);
         plot.setDomainGridlinePaint(java.awt.Color.LIGHT_GRAY);
         plot.setRangeGridlinesVisible(false);
 
@@ -117,21 +127,25 @@ public class PdfGenerator {
         plot.getDomainAxis().setAxisLineVisible(false);
         plot.getDomainAxis().setTickMarksVisible(false);
 
-        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.UP_90);
+
+
+
+        plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.STANDARD);
         plot.getRangeAxis().setTickLabelFont(new Font("SansSerif", Font.PLAIN, 11));
 
-        TextTitle title = new TextTitle("The big leagues", new Font("SansSerif", Font.BOLD, 13));
-        title.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
-        title.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
-        barChart.addSubtitle(title);
+//        TextTitle title = new TextTitle("The big leagues", new Font("SansSerif", Font.BOLD, 13));
+//        title.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
+//        title.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
+//        barChart.addSubtitle(title);
 
-        TextTitle subtitle = new TextTitle("2020 GDP, trillions of USD", new Font("SansSerif", Font.PLAIN, 11));
-        subtitle.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
-        subtitle.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
-        barChart.addSubtitle(subtitle);
+//        TextTitle subtitle = new TextTitle("ARB by Building Category by Millions", new Font("SansSerif", Font.PLAIN, 14));
+//        subtitle.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
+//        subtitle.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
+//        barChart.addSubtitle(subtitle);
 
 
-        renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator());
+        NumberFormat format = NumberFormat.getIntegerInstance();
+        renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator("{2}M", format));
         renderer.setDefaultItemLabelsVisible(true);
 
         // End of Styling
@@ -166,7 +180,7 @@ public class PdfGenerator {
         Image leftImage;
         Image rightImage;
 
-
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMM YY");
 
         public HeaderFooterEventHandler(Image leftImg, Image rightImg) {
             this.leftImage = leftImg;
@@ -208,12 +222,12 @@ public class PdfGenerator {
             pdfCanvas.setFillColor(headerFooterColor).rectangle(pageSize.getLeft(), pageSize.getBottom(), pageSize.getWidth(), 30).fill();
             pdfCanvas.restoreState();
 
-            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(new DeviceRgb(255, 255, 255), true)
+            pdfCanvas.beginText().setFontAndSize(font, 8).setColor(new DeviceRgb(255, 255, 255), true)
                     .moveText(pageSize.getLeft() + 10, pageSize.getBottom() + 10)
-                    .showText(String.format("Date: %s", new Date()))
+                    .showText(String.format("Date: %s", dateFormat.format(new Date())))
                     .endText();
 
-            pdfCanvas.beginText().setFontAndSize(font, 12).setColor(new DeviceRgb(255, 255, 255), true)
+            pdfCanvas.beginText().setFontAndSize(font, 8).setColor(new DeviceRgb(255, 255, 255), true)
                     .moveText(pageSize.getRight() - 50, pageSize.getBottom() + 10)  // Adjust positioning for page number
                     .showText("Page: " + docEvent.getDocument().getPageNumber(page))
                     .endText();
@@ -234,11 +248,46 @@ public class PdfGenerator {
         pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, eventHandler);
         float marginLeft = 36;     // Default
         float marginRight = 36;    // Default
-        float marginTop = 100;     // Adjust this value based on your header height
+        float marginTop = 70;     // Adjust this value based on your header height
         float marginBottom = 36;   // Default
 
         Document document = new Document(pdfDocument);
         document.setMargins(marginTop, marginRight, marginBottom, marginLeft);
+        PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+        Paragraph introParagraph = new Paragraph()
+                .add("This report provides a comprehensive overview of buildings owned by UQ at site xxxx that have a recorded asset replacement value (ARV). ")
+                .add("Detailed information, including images of these buildings, gross floor area (GFA), and primary organisational units, ")
+                .add("is presented in the following sections.")
+                .setFont(regularFont)
+                .setFontSize(12)
+                .setFontColor(DeviceRgb.BLACK)  // Setting font color to black
+                .setMarginBottom(10);  // Add some space between the introduction and the chart
+
+
+        document.add(introParagraph);
+
+        Text bulletPoint = new Text("\u25A0 ")  // Unicode for a square
+                .setFont(regularFont)
+                .setFontSize(12)
+                .setFontColor(new DeviceRgb(128, 0, 128));  // RGB for purple
+
+        int numberOfBuildings = records.size();
+
+
+        Text buildingText = new Text("Number of buildings/structures " + numberOfBuildings)
+                .setFont(regularFont)
+                .setFontColor(DeviceRgb.BLACK)  // Setting font color to black
+                .setFontSize(12);
+
+
+
+// Create a new paragraph with the bullet point and the text
+        Paragraph bulletParagraph = new Paragraph()
+                .add(bulletPoint)
+                .add(buildingText);
+
+        document.add(bulletParagraph);
 
         JFreeChart barChart = createBarChart(records);
 //        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height for higher resolution
@@ -252,12 +301,14 @@ public class PdfGenerator {
         PdfFormXObject svgXObject = SvgConverter.convertToXObject(svgString, pdfDocument);
         Image svgImage = new Image(svgXObject);
         svgImage.scaleToFit(PageSize.A4.getWidth() - 100, PageSize.A4.getHeight() - 200);  // Adjust as needed
-        svgImage.setFixedPosition(50, 400);  // Adjust as needed
+        svgImage.setFixedPosition(50, 100);  // Adjust as needed
 
-        svgImage.scale(0.5f, 0.5f); // This will scale the image to 50% of its original size
+        svgImage.scale(0.6f, 0.6f); // This will scale the image to 50% of its original size
 
 
         document.add(svgImage);
+
+
 
 //        document.add(chartImage);
 
