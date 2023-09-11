@@ -1,8 +1,6 @@
-import com.itextpdf.io.font.FontConstants;
+
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.image.ImageDataFactory;
-
-//import com.itextpdf.kernel.color.Color;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
@@ -20,13 +18,10 @@ import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Canvas;
 import java.text.SimpleDateFormat;
+import java.text.NumberFormat;
 
-//import com.itextpdf.layout.property.HorizontalAlignment;
 import com.itextpdf.layout.element.Image;
-import com.itextpdf.layout.property.TextAlignment;
-import com.itextpdf.layout.property.VerticalAlignment;
 
-import javax.swing.text.StyleConstants;
 import java.awt.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +32,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
@@ -47,25 +41,15 @@ import org.jfree.chart.axis.CategoryLabelPositions;
 import org.jfree.chart.labels.StandardCategoryItemLabelGenerator;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.renderer.category.BarRenderer;
-import org.jfree.chart.title.TextTitle;
-//import org.jfree.ui.RectangleEdge;
-import org.jfree.chart.ui.RectangleEdge;
-import org.jfree.chart.ui.HorizontalAlignment;
-
 import java.awt.image.BufferedImage;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
-
-
 import org.apache.batik.dom.GenericDOMImplementation;
 import org.apache.batik.svggen.SVGGraphics2D;
 import org.w3c.dom.DOMImplementation;
-
-
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.svg.converter.SvgConverter;
 
-import org.jfree.chart.ChartUtils;
 
 public class PdfGenerator {
 
@@ -126,21 +110,8 @@ public class PdfGenerator {
         plot.getDomainAxis().setTickMarksVisible(false);
 
 
-
-
         plot.getDomainAxis().setCategoryLabelPositions(CategoryLabelPositions.STANDARD);
         plot.getRangeAxis().setTickLabelFont(new Font("SansSerif", Font.PLAIN, 11));
-
-//        TextTitle title = new TextTitle("The big leagues", new Font("SansSerif", Font.BOLD, 13));
-//        title.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
-//        title.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
-//        barChart.addSubtitle(title);
-
-//        TextTitle subtitle = new TextTitle("ARB by Building Category by Millions", new Font("SansSerif", Font.PLAIN, 14));
-//        subtitle.setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
-//        subtitle.setHorizontalAlignment(org.jfree.chart.ui.HorizontalAlignment.LEFT);
-//        barChart.addSubtitle(subtitle);
-
 
         NumberFormat format = NumberFormat.getIntegerInstance();
         renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator("{2}M", format));
@@ -150,8 +121,6 @@ public class PdfGenerator {
 
         return barChart;
     }
-
-
 
     private static Image convertChartToImage(JFreeChart chart, int width, int height) throws IOException {
         BufferedImage bufferedImage = chart.createBufferedImage(width, height, BufferedImage.TYPE_INT_RGB, null);
@@ -170,8 +139,6 @@ public class PdfGenerator {
         svgGenerator.stream(svgWriter, true);
         return svgWriter.toString();
     }
-
-
 
     public static class HeaderFooterEventHandler implements IEventHandler {
         private PdfFont font;
@@ -232,6 +199,41 @@ public class PdfGenerator {
         }
     }
 
+    private static String formatARV(String arv) {
+
+        int value = (int) Double.parseDouble(arv);
+        if (value >= 1_000_000) {
+            return String.format("$%sM", NumberFormat.getInstance().format(value / 1_000_000));
+        } else if (value >= 1_000) {
+            return String.format("$%sK", NumberFormat.getInstance().format(value / 1_000));
+        } else {
+            return String.format("$%s", NumberFormat.getInstance().format(value));
+        }
+    }
+
+    private static String capitalize(String input) {
+        String[] parts = input.split("\\W+"); // Split by non-word characters
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) result.append(" "); // Add space between words
+            result.append(Character.toUpperCase(parts[i].charAt(0)));
+            result.append(parts[i].substring(1).toLowerCase());
+        }
+
+        String formattedResult = result.toString();
+
+//        if ("Academic-Sei".equalsIgnoreCase(formattedResult)) {
+
+        if ("Academic Sei".equalsIgnoreCase(formattedResult)) {
+            return "Academic-SEI";
+        } else if ("Academic Non Sei".equalsIgnoreCase(formattedResult)) {
+            return "Academic Non-SEI";
+        }
+
+        return formattedResult;
+    }
+
     public static void generatePdf(String path, List<Map<String, Object>> records) throws IOException, SQLException {
         PdfWriter pdfWriter = new PdfWriter(path);
         PdfDocument pdfDocument = new PdfDocument(pdfWriter);
@@ -265,22 +267,20 @@ public class PdfGenerator {
 
         document.add(introParagraph);
 
-        Text bulletPoint = new Text("\u25A0 ")  // Unicode for a square
+        Text bulletPoint = new Text("\u25A0 ")
                 .setFont(regularFont)
                 .setFontSize(12)
-                .setFontColor(new DeviceRgb(128, 0, 128));  // RGB for purple
+                .setFontColor(new DeviceRgb(128, 0, 128));
 
         int numberOfBuildings = records.size();
 
 
         Text buildingText = new Text("Number of buildings/structures " + numberOfBuildings)
                 .setFont(regularFont)
-                .setFontColor(DeviceRgb.BLACK)  // Setting font color to black
+                .setFontColor(DeviceRgb.BLACK)
                 .setFontSize(12);
 
 
-
-// Create a new paragraph with the bullet point and the text
         Paragraph bulletParagraph = new Paragraph()
                 .add(bulletPoint)
                 .add(buildingText);
@@ -288,8 +288,6 @@ public class PdfGenerator {
         document.add(bulletParagraph);
 
         JFreeChart barChart = createBarChart(records);
-//        Image chartImage = convertChartToImage(barChart, 2000, 1200); // Double the width and height for higher resolution
-//        chartImage.scale(0.25f, 0.25f); // Scale down by 50% when adding to the PDF
         String svgString = convertChartToSVG(barChart, 1000, 600);
         int svgWidth = 2000;  // You can adjust this value as needed
         int svgHeight = 1200;  // You can adjust this value as needed
@@ -308,28 +306,31 @@ public class PdfGenerator {
 
         document.add(new AreaBreak());
 
-//        document.add(chartImage);
-
-
-
         int count = 0;
 
         float[] columnWidths = {400f, 200f};
         Table table = new Table(columnWidths);
         table.setWidth(PageSize.A4.getWidth() - marginLeft - marginRight);
 
-
         DeviceRgb blackColor = new DeviceRgb(0, 0, 0);  // RGB for black
 
 
+
+
         for (Map<String, Object> record : records) {
+            int areaGrossInt = (int) Double.parseDouble((String) record.get("AREA_GROSS_INT"));  // Convert the value to integer.
+            String formattedNumber = NumberFormat.getInstance().format(areaGrossInt);
+            String formattedArea = String.format("%s m²", formattedNumber);
+            String capitalizedUSE1 = capitalize((String) record.get("USE1"));
+
+            String formattedARV = formatARV((String) record.get("ARV"));
+
             String textData = String.format("Building No: %s\n %s\nGFA: %s\nARV: %s\n %s",
-                    record.get("BL_ID"), record.get("BLNAME"), record.get("AREA_GROSS_INT"),
-                    record.get("ARV"), record.get("USE1"));
+                    record.get("BL_ID"), record.get("BLNAME"), formattedArea,
+                    formattedARV, capitalizedUSE1);
 
             Paragraph cellParagraph = new Paragraph(textData).setFont(font).setFontColor(blackColor);
 
-//            table.addCell(new Cell().add(cellParagraph));
             Cell textCell = new Cell().add(cellParagraph);
             textCell.setBorder(Border.NO_BORDER);
             table.addCell(textCell);
@@ -340,7 +341,6 @@ public class PdfGenerator {
             if (imageFile.exists()) {
                 try {
                     Image image = new Image(ImageDataFactory.create(imageFile.getAbsolutePath()));
-//                    image.scaleToFit(200, 200);
                     image.scaleAbsolute(180, 120); // Set the width and height as needed
 
                     Cell imageCell = new Cell();
@@ -357,7 +357,6 @@ public class PdfGenerator {
                 noImageCell.setBorder(Border.NO_BORDER);
                 table.addCell(noImageCell);
             }
-
 
             count++;
             if (count % 5 == 0) {

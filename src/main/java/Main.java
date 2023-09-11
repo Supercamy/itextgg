@@ -1,12 +1,3 @@
-import com.itextpdf.io.font.FontConstants;
-import com.itextpdf.kernel.font.PdfFont;
-import com.itextpdf.kernel.font.PdfFontFactory;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Text;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,9 +6,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Main {
+
+    private static final String OUTPUT_DIRECTORY = "C:\\TMP\\itext\\";
     public static void main(String[] args) throws IOException, SQLException {
+
+
 
         String username = "pf_plann";
         String password = "uqchangeme";
@@ -85,11 +84,16 @@ public class Main {
                 record.put("ARV", rs.getString("ARV"));
                 record.put("USE1", rs.getString("USE1"));
                 Blob eq_photo_blob = rs.getBlob("eq_photo");
-                byte[] bytes = null;
+//                byte[] bytes = null;
+//                if (eq_photo_blob != null) {
+//                    bytes = eq_photo_blob.getBytes(1, (int) eq_photo_blob.length());
+//                }
                 if (eq_photo_blob != null) {
-                    bytes = eq_photo_blob.getBytes(1, (int) eq_photo_blob.length());
+                    byte[] bytes = eq_photo_blob.getBytes(1, (int) eq_photo_blob.length());
+                    String imagePath = saveImage(bytes, rs.getString("BL_ID") + ".jpg");
+                    record.put("eq_photo_path", imagePath);
                 }
-                record.put("eq_photo_bytes", bytes);
+//                record.put("eq_photo_bytes", bytes);
                 records.add(record);
             }
 
@@ -100,7 +104,14 @@ public class Main {
             e.printStackTrace();
         }
 
-        String path = "C:\\TMP\\itext\\FontPdf.pdf";
+        String path = OUTPUT_DIRECTORY + "FontPdf.pdf";
         PdfGenerator.generatePdf(path, records);
     }
+
+    private static String saveImage(byte[] imageBytes, String fileName) throws IOException {
+        Path outputPath = Paths.get(OUTPUT_DIRECTORY, fileName);
+        Files.write(outputPath, imageBytes);
+        return outputPath.toString();
+    }
+
 }
